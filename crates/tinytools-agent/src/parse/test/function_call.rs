@@ -60,3 +60,23 @@ fn an_invalid_marked_object_does_not_hide_a_later_call() {
     assert_eq!(calls.len(), 1);
     assert_eq!(calls[0].name, "echo");
 }
+
+#[test]
+fn an_unterminated_marked_object_stays_visible_in_batch_mode() {
+    let input = r#"function_call:{"call":"echo""#;
+
+    let (text, calls) = parse(input);
+
+    assert_eq!(text, input);
+    assert!(calls.is_empty());
+}
+
+#[test]
+fn an_invalid_marked_json_object_stays_visible() {
+    let input = r#"function_call:{call:"echo"}"#;
+
+    let (text, calls) = parse(input);
+
+    assert_eq!(text, input);
+    assert!(calls.is_empty());
+}
