@@ -29,16 +29,23 @@ impl Grammar for FunctionCall {
         while let Some(start) = find_ci(text, PREFIX, cursor) {
             let after = &text[start + PREFIX.len()..];
             if !after.trim_start().starts_with('{') {
+                if mode == ScanMode::Stream && after.trim_start().is_empty() {
+                    return Probe::Pending { start };
+                }
                 cursor = start + PREFIX.len();
                 continue;
             }
 
             let Some(end) = find_json_end(after) else {
-                return if mode == ScanMode::Stream {
-                    Probe::Pending { start }
-                } else {
-                    Probe::None
-                };
+                if mode == ScanMode::Stream {
+                    return Probe::Pending { start };
+                }
+                // Batch input may contain an abandoned marker before a real
+                // call. There is no balanced boundary to skip to, so resume
+                // at the marker's payload and let the next explicit marker
+                // make progress.
+                cursor = start + PREFIX.len();
+                continue;
             };
             let block_end = start + PREFIX.len() + end;
             let Ok(value) = serde_json::from_str::<serde_json::Value>(&after[..end]) else {
