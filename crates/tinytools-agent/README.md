@@ -26,7 +26,7 @@ and the unknown-tool policy remain the consuming harness's or host's.
 
 | `CallSource` | Shape | Seen from |
 | --- | --- | --- |
-| `TaggedJson` | `<tool_call>{json}</tool_call>`, `<toolcall>`, `<tool-call>`, bare `<invoke>`, attribute form `<tool_call id="…">`, garbled `<\|tool_call>…<tool_call\|>`, `call:` prefix, fenced ```` ```tool_call ````, Kimi `NAME{…}` bodies | Hermes / Qwen templates, OpenRouter, Composio sub-agents, Kimi K2 |
+| `TaggedJson` | `<tool_call>{json}</tool_call>`, `<toolcall>`, `<tool-call>`, bare `<invoke>`, attribute form `<tool_call id="…">`, garbled `<\|tool_call>…<tool_call\|>`, `call:` and `function_call:` prefixes, fenced ```` ```tool_call ````, Kimi `NAME{…}` bodies | Hermes / Qwen templates, OpenRouter, Composio sub-agents, Kimi K2 |
 | `InvokeXml` | `<invoke name><parameter name>`, DeepSeek DSML `<｜DSML｜invoke …>`, namespaced `<atem:invoke>`, `<function=NAME><parameter=k>`, `<function name>` | Claude, DeepSeek V3/V4, muse-spark, Llama / Qwen / Gemma |
 | `Sentinel` | `<｜tool▁call▁begin｜>…<｜tool▁call▁end｜>`, `<\|tool_call_begin\|>…<\|tool_call_end\|>` | DeepSeek R1 / V3, Kimi K2 |
 | `Harmony` | `<\|channel\|>commentary to=NAME<\|message\|>{json}<\|call\|>` | gpt-oss |

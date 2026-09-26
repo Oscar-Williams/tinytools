@@ -15,8 +15,8 @@ use crate::PFormatRegistry;
 pub enum CallSource {
     /// The provider's structured tool-call channel.
     Native,
-    /// `<tool_call>{json}</tool_call>` and its spelling variants, including
-    /// fenced ```` ```tool_call ```` blocks.
+    /// `<tool_call>{json}</tool_call>`, `function_call:{json}`, and their
+    /// spelling variants, including fenced ```` ```tool_call ```` blocks.
     TaggedJson,
     /// `<invoke name="…"><parameter name="…">` XML: Claude, `DeepSeek` DSML,
     /// namespaced variants, and `<function=…>` forms.

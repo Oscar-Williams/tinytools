@@ -12,6 +12,7 @@
 //! at the same byte; the engine otherwise takes the earliest opener.
 
 pub(crate) mod bare_json;
+pub(crate) mod function_call;
 pub(crate) mod glm;
 pub(crate) mod harmony;
 pub(crate) mod invoke_xml;
@@ -92,6 +93,7 @@ pub(crate) trait Grammar: Sync {
 
 /// Every scan grammar, in tie-break order.
 pub(crate) static GRAMMARS: &[&dyn Grammar] = &[
+    &function_call::FunctionCall,
     &invoke_xml::InvokeXml,
     &sentinel::Sentinel,
     &harmony::Harmony,
