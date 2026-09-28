@@ -99,7 +99,10 @@ impl Element {
             let body_start = from + tag.end();
             let closer = format!("</{name}>");
             let Some(body_len) = text[body_start..].find(&closer) else {
-                if mode == ScanMode::Stream {
+                // Hold only while more input could still complete a claimable
+                // block; a body that already cannot be one (a mis-closed
+                // `</todos></tool_call>`, prose) must not stall the stream.
+                if mode == ScanMode::Stream && viable_prefix(&text[body_start..], &closer) {
                     return Probe::Pending { start };
                 }
                 continue;
@@ -145,6 +148,46 @@ fn partial_opener(
         .then_some(start)
 }
 
+/// Whether `name` can be a parameter child. A reserved name (`tool_call`,
+/// `invoke`, …) is another grammar's block: claiming it would swallow a real
+/// call nested inside a malformed element.
+fn is_child_name(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_alphanumeric() || "_.-".contains(c))
+        && !RESERVED
+            .iter()
+            .any(|reserved| reserved.eq_ignore_ascii_case(name))
+}
+
+/// Whether `rest` — a body whose outer `closer` has not arrived — can still
+/// grow into a claimable one: complete children, then at most one partial
+/// child or a partial `closer`.
+fn viable_prefix(rest: &str, closer: &str) -> bool {
+    let mut rest = rest.trim_start();
+    loop {
+        let Some(inner) = rest.strip_prefix('<') else {
+            return rest.is_empty();
+        };
+        if inner.starts_with('/') {
+            return closer[1..].starts_with(inner);
+        }
+        let Some(name_end) = inner.find('>') else {
+            return inner.is_empty() || is_child_name(inner);
+        };
+        let name = &inner[..name_end];
+        if !is_child_name(name) {
+            return false;
+        }
+        let after = &inner[name_end + 1..];
+        let Some(value_end) = after.find(&format!("</{name}>")) else {
+            return true;
+        };
+        rest = after[value_end + name.len() + 3..].trim_start();
+    }
+}
+
 /// `(name, raw value)` for each child element, or `None` when the body holds
 /// anything else — prose, an unclosed child — or no child at all.
 fn children(body: &str) -> Option<Vec<(&str, &str)>> {
@@ -154,11 +197,7 @@ fn children(body: &str) -> Option<Vec<(&str, &str)>> {
         let inner = rest.strip_prefix('<')?;
         let name_end = inner.find('>')?;
         let name = &inner[..name_end];
-        if name.is_empty()
-            || !name
-                .chars()
-                .all(|c| c.is_alphanumeric() || "_.-".contains(c))
-        {
+        if !is_child_name(name) {
             return None;
         }
         let after = &inner[name_end + 1..];

@@ -174,3 +174,39 @@ fn a_streamed_todo_element_yields_one_call_and_no_markup() {
     assert_eq!(calls.len(), 1, "{calls:?}");
     assert!(!shown.contains("todos"), "{shown:?}");
 }
+
+/// Sanitized shape of a real turn: a todo element the model closed with
+/// `</todos></tool_call>` instead of `</todo>`, narration, then a fenced
+/// wrapped invoke. The element is not claimable, so the stream must not
+/// hold everything after `<todo>` until flush.
+#[test]
+fn a_mis_closed_todo_element_does_not_stall_the_stream() {
+    let text = concat!(
+        "<todo>\n<todos>\n[{\"status\": \"pending\", \"description\": \"step one\"}]\n",
+        "</todos>\n</tool_call>\nNow searching the repositories.\n",
+        "```<tool_call>\n<invoke name=\"tool_search\">\n",
+        "<parameter name=\"query\">repos</parameter>\n</invoke>\n</tool_call>"
+    );
+    let mut scrubber = StreamScrubber::new()
+        .with_known_tools(vec!["todo".into(), "tool_search".into()])
+        .with_registry(Arc::new(registry()));
+    let (mut calls, mut live) = (Vec::new(), String::new());
+    for chunk in text.as_bytes().chunks(7) {
+        let step = scrubber.feed(std::str::from_utf8(chunk).unwrap_or_default());
+        calls.extend(step.calls);
+        live.push_str(&step.text);
+    }
+    assert!(live.contains("Now searching"), "released live: {live:?}");
+    calls.extend(scrubber.flush().calls);
+    let names: Vec<&str> = calls.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(names, ["tool_search"]);
+}
+
+#[test]
+fn a_call_inside_a_malformed_element_survives() {
+    let text = "<todo>\n<tool_call>\n<invoke name=\"tool_search\"><parameter name=\"query\">repos</parameter></invoke>\n</tool_call>\n</todo>";
+    let outcome = parse(text);
+    let names: Vec<&str> = outcome.calls.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(names, ["tool_search"], "{:?}", outcome.diagnostics);
+    assert_eq!(malformed(&outcome), 0, "{:?}", outcome.diagnostics);
+}
