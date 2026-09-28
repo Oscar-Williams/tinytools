@@ -297,7 +297,7 @@ fn decode_arguments(body: &str) -> serde_json::Value {
 
 /// A parameter value: JSON when it parses as a number, bool, null, array or
 /// object; otherwise the trimmed text.
-fn scalar_value(raw: &str) -> serde_json::Value {
+pub(crate) fn scalar_value(raw: &str) -> serde_json::Value {
     let trimmed = raw.trim();
     match serde_json::from_str::<serde_json::Value>(trimmed) {
         Ok(
