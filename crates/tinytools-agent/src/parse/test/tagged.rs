@@ -739,3 +739,66 @@ fn recovery_does_not_execute_a_named_invoke_inside_malformed_json() {
     let (_, calls) = parse(raw);
     assert!(calls.is_empty(), "{calls:?}");
 }
+
+// ── Invoke XML inside the tag ───────────────────────────────────────────────
+//
+// Told to call tools "inside <tool_call> tags", `DeepSeek` V4 writes its
+// native invoke XML there. The tag claimed the block and found no JSON, so
+// the call was dropped as malformed even though the same invoke parses bare.
+
+#[test]
+fn a_named_invoke_wrapped_in_a_tool_call_tag_is_decoded() {
+    let raw = "Searching.\n<tool_call>\n<invoke name=\"tool_search\">\n<parameter name=\"query\">repos</parameter>\n</invoke>\n</tool_call>";
+    let outcome = super::parse_known(raw, &["tool_search"]);
+    assert_eq!(outcome.calls.len(), 1, "{:?}", outcome.calls);
+    assert_eq!(outcome.calls[0].name, "tool_search");
+    assert_eq!(
+        outcome.calls[0].arguments,
+        serde_json::json!({"query": "repos"})
+    );
+    assert_eq!(outcome.calls[0].source, CallSource::InvokeXml);
+    assert_eq!(outcome.text, "Searching.");
+}
+
+#[test]
+fn a_wrapped_invoke_with_string_attributes_is_decoded() {
+    let raw = concat!(
+        "<tool_call>\n<invoke name=\"tool_search\">\n",
+        "<parameter name=\"query\" string=\"true\">repos</parameter>\n",
+        "<parameter name=\"limit\" string=\"false\">5</parameter>\n",
+        "</invoke>\n</tool_call>"
+    );
+    let outcome = super::parse_known(raw, &["tool_search"]);
+    assert_eq!(outcome.calls.len(), 1, "{:?}", outcome.calls);
+    assert_eq!(
+        outcome.calls[0].arguments,
+        serde_json::json!({"query": "repos", "limit": 5})
+    );
+}
+
+/// A `<todo>` block, a line of narration, then the wrapped invoke inside a
+/// closed bare fence (no info string, so not protected).
+#[test]
+fn a_todo_block_then_a_closed_bare_fenced_wrapped_invoke_is_decoded() {
+    let raw = concat!(
+        "<todo>\n- [x] read the request\n- [ ] find the tool\n</todo>\n\n",
+        "Let me find the right tool.\n\n",
+        "```\n<tool_call>\n<invoke name=\"tool_search\">\n",
+        "<parameter name=\"query\" string=\"true\">list repositories</parameter>\n",
+        "</invoke>\n</tool_call>\n```"
+    );
+    let outcome = super::parse_known(raw, &["tool_search"]);
+    assert_eq!(outcome.calls.len(), 1, "{:?}", outcome.calls);
+    assert_eq!(outcome.calls[0].name, "tool_search");
+    assert_eq!(
+        outcome.calls[0].arguments,
+        serde_json::json!({"query": "list repositories"})
+    );
+}
+
+#[test]
+fn an_invoke_after_other_body_text_in_the_tag_is_not_decoded() {
+    let raw = "<tool_call>see <invoke name=\"shell\"><parameter name=\"command\">ls</parameter></invoke></tool_call>";
+    let (_, calls) = parse(raw);
+    assert!(calls.is_empty(), "{calls:?}");
+}
