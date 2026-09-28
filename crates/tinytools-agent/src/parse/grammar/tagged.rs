@@ -101,6 +101,28 @@ fn find_re(re: &LazyLock<Option<Regex>>, haystack: &str) -> Option<(usize, usize
         .map(|m| (m.start(), m.end()))
 }
 
+/// An `<invoke>` opener, bare or named, optionally DSML-prefixed — the only
+/// invoke spellings a fence line may carry and still count as a call. No
+/// `<function …>` and no XML namespace: ```` ```<xsl:function name="f"> ````
+/// is code, not a call.
+static FENCE_INVOKE_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?i)^<(?:[|\u{ff5c}]{1,2}\s*DSML\s*[|\u{ff5c}]{1,2}\s*)?invoke(?:\s+[^>]*?\bname\s*=\s*"[^"]*"[^>]*)?\s*>"#,
+    )
+    .ok()
+});
+
+/// Whether `info` — a fence's info string — opens with a complete call tag:
+/// a tag-family opener or an `<invoke>` ([`FENCE_INVOKE_RE`]). `DeepSeek` V4
+/// writes ```` ```<tool_call> ````, so such a fence is a call, not an example.
+pub(crate) fn opens_with_call_tag(info: &str) -> bool {
+    let tag = TAG_RE
+        .as_ref()
+        .and_then(|re| re.find(info))
+        .is_some_and(|m| m.start() == 0 && !is_closing_marker(m.as_str()));
+    tag || FENCE_INVOKE_RE.as_ref().is_some_and(|re| re.is_match(info))
+}
+
 /// Finds the closer that has the exact prefix and spelling of `opener`.
 ///
 /// A bare `<invoke>` must not be closed by `</atem:invoke>` embedded in its
