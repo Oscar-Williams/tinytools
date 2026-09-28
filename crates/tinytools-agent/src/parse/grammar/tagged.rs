@@ -590,6 +590,11 @@ pub(crate) fn decode_body(body: &str, options: &ParseOptions<'_>) -> Vec<ParsedT
     let body = strip_call_prefix(body);
     let is_known = |name: &str| options.knows(name);
 
+    let calls = super::invoke_xml::decode_body(strip_code_fence(body));
+    if !calls.is_empty() {
+        return calls;
+    }
+
     if let Some(registry) = options.registry {
         if let Some((name, arguments)) = crate::pformat::parse_call(body, registry) {
             return vec![ParsedToolCall::new(name, arguments, CallSource::PFormat)];

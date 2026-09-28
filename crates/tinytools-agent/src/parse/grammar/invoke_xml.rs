@@ -217,6 +217,32 @@ impl InvokeXml {
     }
 }
 
+/// Every call in a tag body that *is* invoke XML — `<tool_call><invoke
+/// name="x">…</invoke></tool_call>`, what `DeepSeek` V4 writes when told to
+/// call tools inside `<tool_call>` tags. Empty unless the body opens with a
+/// named invoke, so an invoke quoted inside some other body (a JSON string,
+/// say) is not executed. Once the body does open with one, every later
+/// invoke in it is decoded too, exactly as the same text outside a tag is.
+pub(crate) fn decode_body(body: &str) -> Vec<ParsedToolCall> {
+    let body = body.trim_start();
+    if OPEN_RE
+        .as_ref()
+        .and_then(|re| re.find(body))
+        .is_none_or(|m| m.start() != 0)
+    {
+        return Vec::new();
+    }
+    let mut calls = Vec::new();
+    let mut from = 0;
+    while let Probe::Found(block) = InvokeXml::probe_decided(body, from, ScanMode::Batch) {
+        if let Decoded::Calls(found) = block.decoded {
+            calls.extend(found);
+        }
+        from = block.end;
+    }
+    calls
+}
+
 /// Whether a wrapper tag is a closer or carries a DSML / namespace prefix —
 /// either is unambiguous protocol furniture even with no invoke in sight.
 fn is_closer_or_prefixed(tag: &str) -> bool {
