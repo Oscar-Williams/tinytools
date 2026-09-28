@@ -101,6 +101,18 @@ fn find_re(re: &LazyLock<Option<Regex>>, haystack: &str) -> Option<(usize, usize
         .map(|m| (m.start(), m.end()))
 }
 
+/// Whether `info` — a fence's info string — opens with a complete call tag:
+/// a tag-family opener, a named invoke, or the bare `<invoke>`. `DeepSeek` V4
+/// writes ```` ```<tool_call> ````, so such a fence is a call, not an example.
+pub(crate) fn opens_with_call_tag(info: &str) -> bool {
+    let at_start = |re: &LazyLock<Option<Regex>>| find_re(re, info).is_some_and(|(s, _)| s == 0);
+    let tag = TAG_RE
+        .as_ref()
+        .and_then(|re| re.find(info))
+        .is_some_and(|m| m.start() == 0 && !is_closing_marker(m.as_str()));
+    tag || at_start(&NAMED_INVOKE_OPEN_RE) || at_start(&BARE_INVOKE_OPEN_RE)
+}
+
 /// Finds the closer that has the exact prefix and spelling of `opener`.
 ///
 /// A bare `<invoke>` must not be closed by `</atem:invoke>` embedded in its
