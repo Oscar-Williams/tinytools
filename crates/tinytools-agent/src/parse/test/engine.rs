@@ -89,6 +89,9 @@ fn a_language_fence_still_protects_a_call_tag_example() {
         format!("```xml\n{example}"),
         format!("```xml<tool_call>\n{example}"),
         format!("```text <tool_call>\n{example}"),
+        format!("```<function name=\"f\">\n{example}"),
+        format!("```<xsl:function name=\"f\">\n{example}"),
+        format!("```<function=shell>\n{example}"),
     ] {
         let (_, calls) = parse(&text);
         assert!(calls.is_empty(), "{text:?} dispatched {calls:?}");
