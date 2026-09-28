@@ -2,6 +2,7 @@
 #![allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
 
 mod bare_json;
+mod element;
 mod engine;
 mod glm;
 mod harmony_mistral;

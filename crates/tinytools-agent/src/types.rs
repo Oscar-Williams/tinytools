@@ -36,6 +36,8 @@ pub enum CallSource {
     PFormat,
     /// A code-style call `name(arg="value")` inside a tag, registry-gated.
     Code,
+    /// `<NAME><param>value</param></NAME>` elements, registry-gated.
+    Element,
 }
 
 /// One model-requested tool invocation recovered from text or structured data.
