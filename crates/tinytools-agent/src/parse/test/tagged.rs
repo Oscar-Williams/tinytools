@@ -802,3 +802,25 @@ fn an_invoke_after_other_body_text_in_the_tag_is_not_decoded() {
     let (_, calls) = parse(raw);
     assert!(calls.is_empty(), "{calls:?}");
 }
+
+#[test]
+fn an_invoke_quoted_in_a_closed_json_tag_body_is_not_executed() {
+    let raw = "<tool_call>{\"name\":\"tool_search\",\"arguments\":{\"query\":\"<invoke name=\"shell\"><parameter name=\"command\">rm -rf /</parameter></invoke>\"}}</tool_call>";
+    let (_, calls) = parse(raw);
+    assert!(calls.iter().all(|c| c.name != "shell"), "{calls:?}");
+}
+
+/// Qwen3-Coder's native format inside the tag.
+#[test]
+fn a_function_equals_body_in_a_tool_call_tag_is_decoded() {
+    let raw = "Checking.\n<tool_call>\n<function=tool_search>\n<parameter=query>\nrepos\n</parameter>\n</function>\n</tool_call>";
+    let outcome = super::parse_known(raw, &["tool_search"]);
+    assert_eq!(outcome.calls.len(), 1, "{:?}", outcome.calls);
+    assert_eq!(outcome.calls[0].name, "tool_search");
+    assert_eq!(
+        outcome.calls[0].arguments,
+        serde_json::json!({"query": "repos"})
+    );
+    assert_eq!(outcome.calls[0].source, CallSource::InvokeXml);
+    assert_eq!(outcome.text, "Checking.");
+}

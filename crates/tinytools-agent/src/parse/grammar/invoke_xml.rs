@@ -221,7 +221,8 @@ impl InvokeXml {
 /// name="x">…</invoke></tool_call>`, what `DeepSeek` V4 writes when told to
 /// call tools inside `<tool_call>` tags. Empty unless the body opens with a
 /// named invoke, so an invoke quoted inside some other body (a JSON string,
-/// say) is never executed.
+/// say) is not executed. Once the body does open with one, every later
+/// invoke in it is decoded too, exactly as the same text outside a tag is.
 pub(crate) fn decode_body(body: &str) -> Vec<ParsedToolCall> {
     let body = body.trim_start();
     if OPEN_RE
