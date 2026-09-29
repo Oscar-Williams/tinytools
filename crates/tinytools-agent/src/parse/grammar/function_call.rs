@@ -27,6 +27,15 @@ impl Grammar for FunctionCall {
     fn probe(&self, text: &str, from: usize, _options: &ParseOptions<'_>, mode: ScanMode) -> Probe {
         let mut cursor = from;
         while let Some(start) = find_ci(text, PREFIX, cursor) {
+            if text[..start]
+                .chars()
+                .next_back()
+                .is_some_and(is_identifier_char)
+            {
+                cursor = start + PREFIX.len();
+                continue;
+            }
+
             let after = &text[start + PREFIX.len()..];
             if !after.trim_start().starts_with('{') {
                 if mode == ScanMode::Stream && after.trim_start().is_empty() {
@@ -83,13 +92,22 @@ fn decode_call(value: &serde_json::Value) -> Option<ParsedToolCall> {
     let object = value.as_object()?;
     let name = object
         .get("call")
-        .or_else(|| object.get("name"))
-        .and_then(serde_json::Value::as_str)
-        .map(str::trim)
-        .filter(|name| !name.is_empty())?;
+        .and_then(nonempty_name)
+        .or_else(|| object.get("name").and_then(nonempty_name))?;
     Some(ParsedToolCall::new(
         name,
         args::from_call_object(value),
         CallSource::TaggedJson,
     ))
+}
+
+fn nonempty_name(value: &serde_json::Value) -> Option<&str> {
+    value
+        .as_str()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+}
+
+fn is_identifier_char(character: char) -> bool {
+    character == '_' || character.is_alphanumeric()
 }

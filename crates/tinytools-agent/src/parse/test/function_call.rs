@@ -31,6 +31,35 @@ fn function_call_prefix_accepts_the_standard_name_field() {
 }
 
 #[test]
+fn embedded_function_call_marker_in_a_longer_identifier_stays_visible() {
+    let input = r#"not_function_call:{"name":"echo","arguments":{}}"#;
+
+    let (text, calls) = parse(input);
+
+    assert_eq!(text, input);
+    assert!(calls.is_empty());
+}
+
+#[test]
+fn unusable_call_fields_fall_back_to_a_valid_name() {
+    for call in [serde_json::Value::Null, serde_json::json!("")] {
+        let envelope = serde_json::json!({
+            "call": call,
+            "name": "echo",
+            "arguments": {"value": "ok"}
+        });
+        let input = format!("function_call:{envelope}");
+
+        let (text, calls) = parse(&input);
+
+        assert!(text.is_empty());
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "echo");
+        assert_eq!(calls[0].arguments, serde_json::json!({"value": "ok"}));
+    }
+}
+
+#[test]
 fn an_unrelated_function_call_object_stays_visible() {
     let input = r#"function_call:{"message":"this is not a tool call"}"#;
 
