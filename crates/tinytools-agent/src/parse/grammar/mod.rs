@@ -13,6 +13,7 @@
 
 pub(crate) mod bare_json;
 pub(crate) mod function_call;
+pub(crate) mod element;
 pub(crate) mod glm;
 pub(crate) mod harmony;
 pub(crate) mod invoke_xml;
@@ -99,6 +100,7 @@ pub(crate) static GRAMMARS: &[&dyn Grammar] = &[
     &harmony::Harmony,
     &mistral::Mistral,
     &tagged::Tagged,
+    &element::Element,
 ];
 
 /// Every opener prefix across all scan grammars.

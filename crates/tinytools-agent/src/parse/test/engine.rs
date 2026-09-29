@@ -43,6 +43,61 @@ fn fence_ranges_cover_languages_and_unclosed_fences() {
     assert!(fence_ranges("```tool_call\n{}\n```").is_empty());
 }
 
+// ── A call tag on the fence line itself ────────────────────────────────────
+//
+// `DeepSeek` V4 Flash wrote ```` ```<tool_call> ```` — the opener as the info
+// string — and never closed the fence. The info string read as a language,
+// so the unclosed fence protected the call to end of text as an example.
+
+#[test]
+fn an_unclosed_fence_whose_info_string_is_a_call_tag_is_a_call() {
+    let text = concat!(
+        "<todos>\n- [ ] find the tool\n</todos>\n</tool_call>\n",
+        "```<tool_call>\n<invoke name=\"tool_search\">\n",
+        "<parameter name=\"query\" string=\"true\">list repositories</parameter>\n",
+        "</invoke>\n</tool_call>"
+    );
+    let outcome = parse_known(text, &["tool_search"]);
+    assert_eq!(outcome.calls.len(), 1, "{:?}", outcome.calls);
+    assert_eq!(outcome.calls[0].name, "tool_search");
+    assert_eq!(
+        outcome.calls[0].arguments,
+        serde_json::json!({"query": "list repositories"})
+    );
+}
+
+#[test]
+fn a_fence_whose_info_string_is_a_named_invoke_is_a_call() {
+    let text =
+        "```<invoke name=\"tool_search\">\n<parameter name=\"query\">repos</parameter>\n</invoke>";
+    let (_, calls) = parse(text);
+    assert_eq!(calls.len(), 1, "{calls:?}");
+    assert_eq!(calls[0].name, "tool_search");
+}
+
+#[test]
+fn a_closed_fence_whose_info_string_is_a_call_tag_is_a_call() {
+    let text = "```<tool_call>\n<invoke name=\"tool_search\">\n<parameter name=\"query\">repos</parameter>\n</invoke>\n</tool_call>\n```";
+    let (_, calls) = parse(text);
+    assert_eq!(calls.len(), 1, "{calls:?}");
+}
+
+#[test]
+fn a_language_fence_still_protects_a_call_tag_example() {
+    let example = "<tool_call>\n<invoke name=\"shell\"><parameter name=\"command\">rm -rf /</parameter></invoke>\n</tool_call>";
+    for text in [
+        format!("```xml\n{example}"),
+        format!("```xml<tool_call>\n{example}"),
+        format!("```text <tool_call>\n{example}"),
+        format!("```<function name=\"f\">\n{example}"),
+        format!("```<xsl:function name=\"f\">\n{example}"),
+        format!("```<function=shell>\n{example}"),
+    ] {
+        let (_, calls) = parse(&text);
+        assert!(calls.is_empty(), "{text:?} dispatched {calls:?}");
+    }
+}
+
 #[test]
 fn names_are_repaired_against_known_tools() {
     let outcome = parse_known(

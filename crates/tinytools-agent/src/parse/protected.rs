@@ -8,8 +8,9 @@
 //!
 //! Two deliberate exceptions keep real calls parseable:
 //!
-//! * a fence whose language *is* a tool-call marker (```` ```tool_call ````)
-//!   is a call, not an example, and is handled by the tagged grammar;
+//! * a fence whose language *is* a tool-call marker (```` ```tool_call ````),
+//!   or whose info string opens with a call tag (```` ```<tool_call> ````),
+//!   is a call, not an example, and is handled by the grammars;
 //! * a fence with **no** language tag is not protected. Small models wrap a
 //!   genuine call in a bare fence far more often than they quote one, and a
 //!   quoted example almost always carries a language.
@@ -71,7 +72,8 @@ fn scan_fences(text: &str) -> (Vec<Range<usize>>, Option<usize>) {
                 let language = info.split_whitespace().next().unwrap_or("");
                 let is_tool_call = TOOL_CALL_LANGUAGES
                     .iter()
-                    .any(|lang| lang.eq_ignore_ascii_case(language));
+                    .any(|lang| lang.eq_ignore_ascii_case(language))
+                    || super::grammar::tagged::opens_with_call_tag(info);
                 if !language.is_empty() && !is_tool_call {
                     open = Some((line_start, fence_char, fence_len));
                 }
