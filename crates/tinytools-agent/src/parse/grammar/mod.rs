@@ -12,8 +12,8 @@
 //! at the same byte; the engine otherwise takes the earliest opener.
 
 pub(crate) mod bare_json;
-pub(crate) mod function_call;
 pub(crate) mod element;
+pub(crate) mod function_call;
 pub(crate) mod glm;
 pub(crate) mod harmony;
 pub(crate) mod invoke_xml;
